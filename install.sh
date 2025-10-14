@@ -538,34 +538,24 @@ function memasang_password_ssh(){
 cd
 cat > /etc/systemd/system/rc-local.service <<-END
 [Unit]
-Description=Compatibility Layer for /etc/rc.local
+Description=/etc/rc.local
 ConditionPathExists=/etc/rc.local
-After=network-online.target
-Wants=network-online.target
-
 [Service]
 Type=forking
 ExecStart=/etc/rc.local start
 TimeoutSec=0
+StandardOutput=tty
 RemainAfterExit=yes
-StandardOutput=journal
 SysVStartPriority=99
-
 [Install]
 WantedBy=multi-user.target
 END
-
-# === Isi rc.local aman universal ===
 cat > /etc/rc.local <<'EOF'
 #!/bin/sh -e
-# rc.local universal — aman di semua tipe VPS
+# rc.local aman - hanya aktifkan fungsi ringan
 
-# Nonaktifkan IPv6 hanya jika bisa ditulis
-if [ -w /proc/sys/net/ipv6/conf/all/disable_ipv6 ]; then
-    echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6
-else
-    echo "[Skip] Tidak bisa menulis IPv6 disable (Read-only system)"
-fi
+# Nonaktifkan IPv6
+echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6
 
 # Pastikan firewall aktif
 if command -v netfilter-persistent >/dev/null 2>&1; then
@@ -574,11 +564,10 @@ else
     iptables-restore < /etc/iptables.up.rules 2>/dev/null
 fi
 
-# Jalankan BadVPN hanya jika belum aktif
+# Jalankan BadVPN hanya jika port belum aktif
 for port in 7100 7200 7300; do
     if ! ss -tulpn | grep -q ":$port "; then
-        screen -dmS badvpn-$port /usr/bin/badvpn-udpgw \
-        --listen-addr 127.0.0.1:$port --max-clients 500
+        screen -dmS badvpn-$port /usr/bin/badvpn-udpgw --listen-addr 127.0.0.1:$port --max-clients 500
     fi
 done
 
@@ -586,8 +575,6 @@ exit 0
 EOF
 
 chmod +x /etc/rc.local
-dos2unix /etc/rc.local 2>/dev/null
-systemctl daemon-reload
 systemctl enable rc-local
 systemctl restart rc-local
 
@@ -930,9 +917,8 @@ function memasang_menu(){
 function memasang_profile(){
     clear
     print_install "Memasang Profil"
-    # === Atur menu otomatis saat login ===
-    cat >/root/.profile <<'EOF'
-if [ "$BASH" ]; then
+    cat >/root/.profile <<EOF
+if [ "\$BASH" ]; then
     if [ -f ~/.bashrc ]; then
         . ~/.bashrc
     fi
@@ -942,20 +928,20 @@ menu
 EOF
 
     # === JADWAL XP: tiap hari pukul 00:02 ===
-    cat >/etc/cron.d/xp_all <<-'END'
+    cat >/etc/cron.d/xp_all <<-END
 SHELL=/bin/sh
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 2 0 * * * root /usr/local/sbin/xp
 END
 
     # === CRON tambahan: bersih log & reboot harian ===
-    cat >/etc/cron.d/logclean <<-'END'
+    cat >/etc/cron.d/logclean <<-END
 SHELL=/bin/sh
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 */20 * * * * root /usr/local/sbin/clearlog
 END
 
-    cat >/etc/cron.d/pembersih <<-'END'
+    cat >/etc/cron.d/pembersih <<-END
 SHELL=/bin/sh
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 */10 * * * * root truncate -s 0 /var/log/syslog \
@@ -967,45 +953,74 @@ END
 
     chmod 644 /root/.profile
 
-    # === Cron untuk reboot otomatis ===
-    cat >/etc/cron.d/daily_reboot <<-'END'
+    cat >/etc/cron.d/daily_reboot <<-END
 SHELL=/bin/sh
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 0 5 * * * root /sbin/reboot
 END
 
-    # === Cron tambahan untuk reset log ringan ===
     echo "*/1 * * * * root echo -n > /var/log/nginx/access.log" >/etc/cron.d/log.nginx
     echo "*/1 * * * * root echo -n > /var/log/xray/access.log" >>/etc/cron.d/log.xray
 
-    # === Aktifkan ulang cron ===
-    systemctl daemon-reload
-    systemctl enable cron
     systemctl restart cron
 
-    # === Simpan waktu reboot harian ===
-    echo "5" >/home/daily_reboot
+    cat >/home/daily_reboot <<-END
+5
+END
 
-    # === Tambahkan shell aman ===
+    # === rc.local service ===
+    cat >/etc/systemd/system/rc-local.service <<EOF
+[Unit]
+Description=/etc/rc.local
+ConditionPathExists=/etc/rc.local
+[Service]
+Type=forking
+ExecStart=/etc/rc.local start
+TimeoutSec=0
+StandardOutput=tty
+RemainAfterExit=yes
+SysVStartPriority=99
+[Install]
+WantedBy=multi-user.target
+EOF
+
     echo "/bin/false" >>/etc/shells
     echo "/usr/sbin/nologin" >>/etc/shells
 
-    # ⚠️ Tidak menimpa /etc/rc.local (biarkan yang versi stabil dari fungsi memasang_password_ssh)
-    if systemctl is-active --quiet rc-local; then
-        echo "[INFO] rc.local sudah aktif — tidak diganti."
-    else
-        echo "[WARNING] rc.local belum aktif, melewati pengaturan ulang."
-    fi
+    # === isi rc.local ===
+    cat >/etc/rc.local <<'EOF'
+#!/bin/sh -e
+# rc.local
+# By default this script does nothing.
+
+# Buka port DNS UDP & redirect ke 5300
+iptables -I INPUT -p udp --dport 5300 -j ACCEPT
+iptables -t nat -I PREROUTING -p udp --dport 53 -j REDIRECT --to-ports 5300
+
+# Restart firewall
+systemctl restart netfilter-persistent
+
+exit 0
+EOF
+
+    chmod +x /etc/rc.local
+
+    # === FIX TAMBAHAN: pastikan format Unix & aktifkan ===
+    dos2unix /etc/rc.local 2>/dev/null
+    systemctl daemon-reload
+    systemctl enable rc-local
+    systemctl restart rc-local
 
     # Penanda waktu reboot otomatis
     AUTOREB=$(cat /home/daily_reboot)
     SETT=11
-    if [ $AUTOREB -gt $SETT ]; then
+    if [ \$AUTOREB -gt \$SETT ]; then
         TIME_DATE="PM"
     else
         TIME_DATE="AM"
     fi
 
+    # Aman: tidak menyentuh SSH DB dan tidak menjalankan xp langsung
     print_success "Profil"
 }
 function memasang_dropbear(){
