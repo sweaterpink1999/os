@@ -1,0 +1,93 @@
+#!/bin/bash
+clear
+XRAY_CONFIG="/etc/xray/config.json"
+DOMAIN=$(cat /etc/xray/domain 2>/dev/null || echo "Tidak ada domain")
+
+mkdir -p /etc/limit/vmess/ip/
+mkdir -p /etc/vmess/
+
+# ============================================
+# Kirim Notifikasi Telegram
+# ============================================
+function send-ip() {
+    local user="$1"
+    local limit_ip="$2"
+    local login_count="$3"
+    shift 3
+    local ip_list=("$@")
+
+    local CHATID=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 3)
+    local KEY=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 2)
+    local URL="https://api.telegram.org/bot$KEY/sendMessage"
+    local TIME="10"
+
+    local IP_LIST=$(printf '%s\n' "${ip_list[@]}" | sed 's/^/• /')
+
+    local TEXT="
+<code>────────────────────</code>
+<b>⚠️ DETEKSI MULTI LOGIN ⚠️</b>
+<code>────────────────────</code>
+<b>» Protocol:</b> <code>VMESS</code>
+<b>» User:</b> <code>${user}</code>
+<b>» Limit IP:</b> <code>${limit_ip} IP</code>
+<b>» IP Login:</b> <code>${login_count} IP</code>
+<b>» Daftar IP:</b>
+<code>${IP_LIST}</code>
+<code>────────────────────</code>
+<b>» Domain Server:</b> <code>${DOMAIN}</code>
+<code>────────────────────</code>
+<b>» Status:</b> <code>Hanya Notifikasi (user tidak dikunci)</code>
+🤖 Mohon tidak berbagi akun ke banyak perangkat ya!
+<code>────────────────────</code>
+"
+    curl -s --max-time $TIME \
+        -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEXT&parse_mode=html" \
+        "$URL" >/dev/null
+}
+
+# ============================================
+# Proses Deteksi Multi Login
+# ============================================
+function memulai_pengecekan() {
+    clear
+    > /tmp/ipvmess.txt
+
+    # Ambil daftar user VMESS dari config Xray
+    data=($(grep -E "^###" "$XRAY_CONFIG" | cut -d ' ' -f 2 | sort -u))
+    for user in "${data[@]}"; do
+        [[ -z "$user" ]] && continue
+        > /tmp/ipvmess.txt
+
+        # Ambil IP aktif user dari log Xray
+        mapfile -t data2 < <(grep -w "$user" /var/log/xray/access.log \
+            | tail -n 500 \
+            | grep -oP '\sfrom\s\K[0-9]{1,3}(\.[0-9]{1,3}){3}' \
+            | sort -u)
+
+        for ip in "${data2[@]}"; do
+            [[ -n "$ip" ]] && echo "$ip" >> /tmp/ipvmess.txt
+        done
+
+        if [[ -s /tmp/ipvmess.txt ]]; then
+            raw_limit_ip=$(cat /etc/limit/vmess/ip/"$user" 2>/dev/null || echo 1)
+            limit_ip=$(echo "$raw_limit_ip" | grep -o '[0-9]\+' || echo 1)
+            login_count=$(wc -l < /tmp/ipvmess.txt)
+
+            echo -e "User        : $user"
+            echo -e "Limit Login : ${limit_ip} IP"
+            echo -e "Active IP   : $login_count IP"
+
+            # Jika melebihi limit → kirim notifikasi
+            if [[ "$login_count" -gt "$limit_ip" ]]; then
+                send-ip "$user" "$limit_ip" "$login_count" "${data2[@]}"
+                echo -e "⚠️ User ${user} melebihi batas IP — notifikasi dikirim ke Telegram."
+            fi
+        fi
+    done
+
+    rm -f /tmp/ipvmess.txt
+    echo -n > /var/log/xray/access.log
+    sleep 2
+}
+
+memulai_pengecekan

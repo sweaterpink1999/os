@@ -1,0 +1,125 @@
+#!/bin/bash
+clear
+DOMAIN=$(cat /etc/xray/domain 2>/dev/null || echo "Tidak ada domain")
+mkdir -p /etc/limit/ssh/ip/
+
+# ============================================
+# Kirim Notifikasi Telegram
+# ============================================
+send_ip_notification() {
+    local user="$1"
+    local limit_ip="$2"
+    local ip_count="$3"
+    shift 3
+    local ip_list=("$@")
+
+    local CHATID=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 3)
+    local KEY=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 2)
+    local URL="https://api.telegram.org/bot$KEY/sendMessage"
+
+    local IP_LIST=$(printf '%s\n' "${ip_list[@]}" | sed 's/^/• /')
+
+    local TEXT="
+<code>────────────────────</code>
+<b>⚠️ DETEKSI MULTI LOGIN ⚠️</b>
+<code>────────────────────</code>
+<b>» Protocol:</b> <code>SSH</code>
+<b>» User:</b> <code>${user}</code>
+<b>» Limit IP:</b> <code>${limit_ip} IP</code>
+<b>» IP Login:</b> <code>${ip_count} IP</code>
+<b>» Daftar IP:</b>
+<code>${IP_LIST}</code>
+<code>────────────────────</code>
+<b>» Domain Server:</b> <code>${DOMAIN}</code>
+<code>────────────────────</code>
+<b>» Status:</b> <code>Hanya Notifikasi (user tidak dikunci)</code>
+🤖 Mohon tidak berbagi akun ke banyak perangkat ya!
+<code>────────────────────</code>
+"
+    curl -s --max-time 10 \
+        -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEXT&parse_mode=html" \
+        "$URL" >/dev/null
+}
+
+# ============================================
+# Ambil Data Login SSH & Dropbear
+# ============================================
+collect_raw_login_data() {
+    local LOG_FILE
+    if [ -e "/var/log/auth.log" ]; then
+        LOG_FILE="/var/log/auth.log"
+    elif [ -e "/var/log/secure" ]; then
+        LOG_FILE="/var/log/secure"
+    else
+        echo "⚠️ Log file tidak ditemukan!"
+        return 1
+    fi
+
+    > /tmp/user_login_ips.txt
+
+    # Dropbear
+    grep -i "dropbear" "$LOG_FILE" | grep -i "Password auth succeeded" | while read line; do
+        local user=$(echo "$line" | awk '{print $10}')
+        local ip=$(echo "$line" | awk '{print $12}')
+        [[ -n "$user" && -n "$ip" ]] && echo "$user $ip" >> /tmp/user_login_ips.txt
+    done
+
+    # SSHD
+    grep -i "sshd" "$LOG_FILE" | grep -i "Accepted password for" | while read line; do
+        local user=$(echo "$line" | awk '{print $9}')
+        local ip=$(echo "$line" | awk '{print $11}')
+        [[ -n "$user" && -n "$ip" ]] && echo "$user $ip" >> /tmp/user_login_ips.txt
+    done
+
+    sort -u /tmp/user_login_ips.txt -o /tmp/user_login_ips.txt
+}
+
+# ============================================
+# Tampilkan login di terminal (opsional)
+# ============================================
+display_logins_output() {
+    clear
+    local users_for_display=($(awk '{print $1}' /tmp/user_login_ips.txt | sort -u))
+    for user in "${users_for_display[@]}"; do
+        local ip_count=$(grep -w "$user" /tmp/user_login_ips.txt | awk '{print $2}' | sort -u | wc -l)
+        echo "User: $user - IP Count: $ip_count"
+        grep -w "$user" /tmp/user_login_ips.txt | awk '{print "  → " $2}' | sort -u
+        echo ""
+    done
+}
+
+# ============================================
+# Cek Limit dan Kirim Notifikasi
+# ============================================
+apply_notify_logic() {
+    local all_users=($(awk -F: '$3 >= 1000 && $3 < 60000 {print $1}' /etc/passwd | sort -u))
+    for user in "${all_users[@]}"; do
+        [[ "$user" == "root" ]] && continue
+
+        local limit_ip_file="/etc/limit/ssh/ip/$user"
+        local limit_ip="1"
+        [[ -f "$limit_ip_file" ]] && limit_ip=$(cat "$limit_ip_file" | grep -o '[0-9]\+' || echo 1)
+
+        mapfile -t user_ips < <(grep -w "$user" /tmp/user_login_ips.txt | awk '{print $2}' | sort -u)
+        local ip_count=${#user_ips[@]}
+
+        if [[ "$ip_count" -gt "$limit_ip" ]]; then
+            send_ip_notification "$user" "$limit_ip" "$ip_count" "${user_ips[@]}"
+            echo "⚠️ Notifikasi terkirim untuk user: $user (multi-login)"
+        fi
+    done
+}
+
+# ============================================
+# Main Program
+# ============================================
+memulai_pengecekan() {
+    collect_raw_login_data || return
+    apply_notify_logic
+    display_logins_output
+    rm -f /tmp/user_login_ips.txt
+    echo -n > /var/log/auth.log
+    sleep 2
+}
+
+memulai_pengecekan

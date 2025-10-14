@@ -1,0 +1,16 @@
+[Unit]
+Description=SSH UDP Custom Service
+Documentation=https://t.me/xd_tunnel
+After=network.target nss-lookup.target
+
+[Service]
+User=root
+Type=simple
+ExecStart=/etc/udp/udp-custom server -config /etc/udp/config.json -exclude 1,54,55,1000,65535
+WorkingDirectory=/etc/udp/
+Restart=always
+RestartSec=5s
+LimitNOFILE=1000000
+
+[Install]
+WantedBy=multi-user.target
