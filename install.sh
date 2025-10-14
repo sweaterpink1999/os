@@ -557,19 +557,25 @@ EOF
 cat > /etc/rc.local <<'EOF'
 #!/bin/bash
 # rc.local - auto-run services setiap reboot
-# Log semua output ke /var/log/rc.local.log
 exec > /var/log/rc.local.log 2>&1
-set -e
+set -ex
 
-# Nonaktifkan IPv6
-echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6
+# Tunggu sedikit agar systemd siap
+sleep 5
 
-# Aktifkan firewall jika ada konfigurasi
+# Nonaktifkan IPv6 (jika tersedia)
+if [ -f /proc/sys/net/ipv6/conf/all/disable_ipv6 ]; then
+    echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6
+else
+    echo "IPv6 kernel path not found, skipping disable step"
+fi
+
+# Aktifkan firewall kalau ada
 if command -v netfilter-persistent >/dev/null 2>&1; then
-    systemctl restart netfilter-persistent
+    systemctl restart netfilter-persistent || true
 else
     if [ -f /etc/iptables.up.rules ]; then
-        iptables-restore < /etc/iptables.up.rules 2>/dev/null
+        iptables-restore < /etc/iptables.up.rules 2>/dev/null || true
     fi
 fi
 
@@ -577,8 +583,12 @@ fi
 for port in 7100 7200 7300; do
     if ! pgrep -f "badvpn-udpgw.*$port" >/dev/null; then
         echo "Starting BadVPN port $port..."
-        screen -dmS badvpn-$port /usr/bin/badvpn-udpgw \
-        --listen-addr 127.0.0.1:$port --max-clients 500
+        if [ -x /usr/bin/badvpn-udpgw ]; then
+            screen -dmS badvpn-$port /usr/bin/badvpn-udpgw \
+            --listen-addr 127.0.0.1:$port --max-clients 500 || true
+        else
+            echo "badvpn-udpgw not found, skipping port $port"
+        fi
     fi
 done
 
