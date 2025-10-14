@@ -541,14 +541,15 @@ cat > /etc/systemd/system/rc-local.service <<'EOF'
 [Unit]
 Description=Run /etc/rc.local at startup
 ConditionPathExists=/etc/rc.local
-After=network.target
+After=network-online.target
 
 [Service]
 Type=forking
-ExecStart=/etc/rc.local
+ExecStart=/etc/rc.local start
 TimeoutSec=0
 RemainAfterExit=yes
 StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
@@ -573,10 +574,8 @@ fi
 # Aktifkan firewall kalau ada
 if command -v netfilter-persistent >/dev/null 2>&1; then
     systemctl restart netfilter-persistent || true
-else
-    if [ -f /etc/iptables.up.rules ]; then
-        iptables-restore < /etc/iptables.up.rules 2>/dev/null || true
-    fi
+elif [ -f /etc/iptables.up.rules ]; then
+    iptables-restore < /etc/iptables.up.rules 2>/dev/null || true
 fi
 
 # Jalankan BadVPN otomatis jika belum aktif
@@ -598,8 +597,7 @@ EOF
 chmod +x /etc/rc.local
 systemctl daemon-reload
 systemctl enable rc-local
-systemctl start rc-local
-systemctl status rc-local --no-pager | tee /tmp/rc-status.log
+systemctl restart rc-local
 
 print_success "Password SSH"
 }
