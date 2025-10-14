@@ -557,22 +557,28 @@ EOF
 cat > /etc/rc.local <<'EOF'
 #!/bin/bash
 # rc.local - auto-run services setiap reboot
+# Log semua output ke /var/log/rc.local.log
+exec > /var/log/rc.local.log 2>&1
+set -e
 
-# Nonaktifkan IPv6 untuk stabilitas
+# Nonaktifkan IPv6
 echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6
 
 # Aktifkan firewall jika ada konfigurasi
 if command -v netfilter-persistent >/dev/null 2>&1; then
     systemctl restart netfilter-persistent
-elif [ -f /etc/iptables.up.rules ]; then
-    iptables-restore < /etc/iptables.up.rules 2>/dev/null
+else
+    if [ -f /etc/iptables.up.rules ]; then
+        iptables-restore < /etc/iptables.up.rules 2>/dev/null
+    fi
 fi
 
 # Jalankan BadVPN otomatis jika belum aktif
 for port in 7100 7200 7300; do
     if ! pgrep -f "badvpn-udpgw.*$port" >/dev/null; then
         echo "Starting BadVPN port $port..."
-        screen -dmS badvpn-$port /usr/bin/badvpn-udpgw --listen-addr 127.0.0.1:$port --max-clients 500
+        screen -dmS badvpn-$port /usr/bin/badvpn-udpgw \
+        --listen-addr 127.0.0.1:$port --max-clients 500
     fi
 done
 
@@ -984,22 +990,6 @@ END
     cat >/home/daily_reboot <<-END
 5
 END
-
-    # === rc.local service ===
-    cat >/etc/systemd/system/rc-local.service <<EOF
-[Unit]
-Description=/etc/rc.local
-ConditionPathExists=/etc/rc.local
-[Service]
-Type=forking
-ExecStart=/etc/rc.local start
-TimeoutSec=0
-StandardOutput=tty
-RemainAfterExit=yes
-SysVStartPriority=99
-[Install]
-WantedBy=multi-user.target
-EOF
 
     echo "/bin/false" >>/etc/shells
     echo "/usr/sbin/nologin" >>/etc/shells
