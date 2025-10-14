@@ -536,37 +536,42 @@ function memasang_password_ssh(){
     debconf-set-selections <<<"keyboard-configuration keyboard-configuration/variant select English"
     debconf-set-selections <<<"keyboard-configuration keyboard-configuration/xkb-keymap select "
 cd
-cat > /etc/systemd/system/rc-local.service <<-END
+# === FIX rc.local agar auto run di reboot ===
+cat > /etc/systemd/system/rc-local.service <<'EOF'
 [Unit]
-Description=/etc/rc.local
+Description=Run /etc/rc.local at startup
 ConditionPathExists=/etc/rc.local
+After=network.target
+
 [Service]
 Type=forking
-ExecStart=/etc/rc.local start
+ExecStart=/etc/rc.local
 TimeoutSec=0
-StandardOutput=tty
 RemainAfterExit=yes
-SysVStartPriority=99
+StandardOutput=journal
+
 [Install]
 WantedBy=multi-user.target
-END
-cat > /etc/rc.local <<'EOF'
-#!/bin/sh -e
-# rc.local aman - hanya aktifkan fungsi ringan
+EOF
 
-# Nonaktifkan IPv6
+cat > /etc/rc.local <<'EOF'
+#!/bin/bash
+# rc.local - auto-run services setiap reboot
+
+# Nonaktifkan IPv6 untuk stabilitas
 echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6
 
-# Pastikan firewall aktif
+# Aktifkan firewall jika ada konfigurasi
 if command -v netfilter-persistent >/dev/null 2>&1; then
     systemctl restart netfilter-persistent
-else
+elif [ -f /etc/iptables.up.rules ]; then
     iptables-restore < /etc/iptables.up.rules 2>/dev/null
 fi
 
-# Jalankan BadVPN hanya jika port belum aktif
+# Jalankan BadVPN otomatis jika belum aktif
 for port in 7100 7200 7300; do
-    if ! ss -tulpn | grep -q ":$port "; then
+    if ! pgrep -f "badvpn-udpgw.*$port" >/dev/null; then
+        echo "Starting BadVPN port $port..."
         screen -dmS badvpn-$port /usr/bin/badvpn-udpgw --listen-addr 127.0.0.1:$port --max-clients 500
     fi
 done
@@ -575,8 +580,10 @@ exit 0
 EOF
 
 chmod +x /etc/rc.local
+systemctl daemon-reload
 systemctl enable rc-local
-systemctl restart rc-local
+systemctl start rc-local
+systemctl status rc-local --no-pager | tee /tmp/rc-status.log
 
 print_success "Password SSH"
 }
@@ -849,17 +856,27 @@ apt autoremove -y >/dev/null 2>&1
 print_success "Netfilter & IPtables"
 }
 function memasang_badvpn(){
-clear
-print_install "Memasang BadVPN"
-wget -O /usr/bin/badvpn-udpgw "${REPO}files/newudpgw"
-chmod +x /usr/bin/badvpn-udpgw
-sed -i '$ i\screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7100 --max-clients 500' /etc/rc.local
-sed -i '$ i\screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7200 --max-clients 500' /etc/rc.local
-sed -i '$ i\screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7300 --max-clients 500' /etc/rc.local
-screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7100 --max-clients 500
-screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7200 --max-clients 500
-screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7300 --max-clients 500
-print_success "BadVPN"
+    clear
+    print_install "Memasang BadVPN"
+
+    # Bersihkan duplikasi sebelumnya di /etc/rc.local
+    # (hapus semua baris yang mengandung badvpn-udpgw agar tidak menumpuk)
+    sed -i '/badvpn-udpgw/d' /etc/rc.local
+
+    wget -O /usr/bin/badvpn-udpgw "${REPO}files/newudpgw"
+    chmod +x /usr/bin/badvpn-udpgw
+
+    # Tambahkan auto-start ke rc.local
+    sed -i '$ i\screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7100 --max-clients 500' /etc/rc.local
+    sed -i '$ i\screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7200 --max-clients 500' /etc/rc.local
+    sed -i '$ i\screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7300 --max-clients 500' /etc/rc.local
+
+    # Jalankan langsung sekarang juga
+    screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7100 --max-clients 500
+    screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7200 --max-clients 500
+    screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7300 --max-clients 500
+
+    print_success "BadVPN"
 }
 function memasang_restart(){
 clear
@@ -986,30 +1003,6 @@ EOF
 
     echo "/bin/false" >>/etc/shells
     echo "/usr/sbin/nologin" >>/etc/shells
-
-    # === isi rc.local ===
-    cat >/etc/rc.local <<'EOF'
-#!/bin/sh -e
-# rc.local
-# By default this script does nothing.
-
-# Buka port DNS UDP & redirect ke 5300
-iptables -I INPUT -p udp --dport 5300 -j ACCEPT
-iptables -t nat -I PREROUTING -p udp --dport 53 -j REDIRECT --to-ports 5300
-
-# Restart firewall
-systemctl restart netfilter-persistent
-
-exit 0
-EOF
-
-    chmod +x /etc/rc.local
-
-    # === FIX TAMBAHAN: pastikan format Unix & aktifkan ===
-    dos2unix /etc/rc.local 2>/dev/null
-    systemctl daemon-reload
-    systemctl enable rc-local
-    systemctl restart rc-local
 
     # Penanda waktu reboot otomatis
     AUTOREB=$(cat /home/daily_reboot)
