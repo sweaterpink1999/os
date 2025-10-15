@@ -1,4 +1,3 @@
-
 #!/bin/bash
 clear
 export DEBIAN_FRONTEND=noninteractive
@@ -876,7 +875,7 @@ After=network-online.target
 
 [Service]
 Type=forking
-ExecStart=/etc/rc.local start
+ExecStart=/etc/rc.local
 TimeoutSec=0
 RemainAfterExit=yes
 StandardOutput=journal
