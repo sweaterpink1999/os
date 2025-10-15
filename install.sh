@@ -793,18 +793,36 @@ function memasang_fail2ban(){
     print_success "Fail2ban"
 }
 function memasang_netfilter(){
-clear
-print_install "Memasang Netfilter & IPtables"
-wget -q -O /usr/local/share/xray/geosite.dat "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat" >/dev/null 2>&1
-wget -q -O /usr/local/share/xray/geoip.dat "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat" >/dev/null 2>&1
-iptables-save > /etc/iptables.up.rules
-iptables-restore -t < /etc/iptables.up.rules
-netfilter-persistent save
-netfilter-persistent reload
-cd
-apt autoclean -y >/dev/null 2>&1
-apt autoremove -y >/dev/null 2>&1
-print_success "Netfilter & IPtables"
+  clear
+  print_install "Memasang Netfilter & IPtables"
+
+  # Unduh file data Geo (biarkan seperti sebelumnya)
+  wget -q -O /usr/local/share/xray/geosite.dat "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat" >/dev/null 2>&1
+  wget -q -O /usr/local/share/xray/geoip.dat "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat" >/dev/null 2>&1
+
+  # Tambahkan rule dasar agar file /etc/iptables.up.rules tidak kosong
+  iptables -F
+  iptables -X
+  iptables -t nat -F
+  iptables -t mangle -F
+  iptables -P INPUT ACCEPT
+  iptables -P FORWARD ACCEPT
+  iptables -P OUTPUT ACCEPT
+  iptables -A INPUT -i lo -j ACCEPT
+  iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+  iptables -A INPUT -p tcp --dport 22 -j ACCEPT
+  iptables -A INPUT -p tcp --dport 80 -j ACCEPT
+  iptables -A INPUT -p tcp --dport 443 -j ACCEPT
+
+  # Simpan dan aktifkan
+  iptables-save > /etc/iptables.up.rules
+  netfilter-persistent save
+  netfilter-persistent reload
+
+  apt autoclean -y >/dev/null 2>&1
+  apt autoremove -y >/dev/null 2>&1
+
+  print_success "Netfilter & IPtables"
 }
 function memasang_badvpn(){
     clear
@@ -903,8 +921,15 @@ fi
 
 # Aktifkan firewall kalau ada
 if command -v netfilter-persistent >/dev/null 2>&1; then
+    echo "[INFO] Menyalakan firewall..."
     systemctl restart netfilter-persistent || true
+    sleep 3
+    if ! iptables -L -n &>/dev/null; then
+        echo "[WARN] Iptables gagal dimuat, mencoba manual restore..."
+        iptables-restore < /etc/iptables.up.rules 2>/dev/null || true
+    fi
 elif [ -f /etc/iptables.up.rules ]; then
+    echo "[INFO] Restore manual iptables..."
     iptables-restore < /etc/iptables.up.rules 2>/dev/null || true
 fi
 
