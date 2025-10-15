@@ -909,8 +909,12 @@ cat > /etc/rc.local <<'EOF'
 exec > /var/log/rc.local.log 2>&1
 set -ex
 
-# Tunggu sedikit agar systemd siap
-sleep 5
+# Tunggu agar jaringan benar-benar siap
+sleep 10
+if ! ping -c1 8.8.8.8 &>/dev/null; then
+    echo "[WARN] Network belum aktif, menunggu lagi 5 detik..."
+    sleep 5
+fi
 
 # Nonaktifkan IPv6 (jika tersedia)
 if [ -f /proc/sys/net/ipv6/conf/all/disable_ipv6 ]; then
