@@ -1,3 +1,4 @@
+
 #!/bin/bash
 clear
 export DEBIAN_FRONTEND=noninteractive
@@ -536,69 +537,6 @@ function memasang_password_ssh(){
     debconf-set-selections <<<"keyboard-configuration keyboard-configuration/variant select English"
     debconf-set-selections <<<"keyboard-configuration keyboard-configuration/xkb-keymap select "
 cd
-# === FIX rc.local agar auto run di reboot ===
-cat > /etc/systemd/system/rc-local.service <<'EOF'
-[Unit]
-Description=Run /etc/rc.local at startup
-ConditionPathExists=/etc/rc.local
-After=network-online.target
-
-[Service]
-Type=forking
-ExecStart=/etc/rc.local start
-TimeoutSec=0
-RemainAfterExit=yes
-StandardOutput=journal
-StandardError=journal
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-cat > /etc/rc.local <<'EOF'
-#!/bin/bash
-# rc.local - auto-run services setiap reboot
-exec > /var/log/rc.local.log 2>&1
-set -ex
-
-# Tunggu sedikit agar systemd siap
-sleep 5
-
-# Nonaktifkan IPv6 (jika tersedia)
-if [ -f /proc/sys/net/ipv6/conf/all/disable_ipv6 ]; then
-    echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6
-else
-    echo "IPv6 kernel path not found, skipping disable step"
-fi
-
-# Aktifkan firewall kalau ada
-if command -v netfilter-persistent >/dev/null 2>&1; then
-    systemctl restart netfilter-persistent || true
-elif [ -f /etc/iptables.up.rules ]; then
-    iptables-restore < /etc/iptables.up.rules 2>/dev/null || true
-fi
-
-# Jalankan BadVPN otomatis jika belum aktif
-for port in 7100 7200 7300; do
-    if ! pgrep -f "badvpn-udpgw.*$port" >/dev/null; then
-        echo "Starting BadVPN port $port..."
-        if [ -x /usr/bin/badvpn-udpgw ]; then
-            screen -dmS badvpn-$port /usr/bin/badvpn-udpgw \
-            --listen-addr 127.0.0.1:$port --max-clients 500 || true
-        else
-            echo "badvpn-udpgw not found, skipping port $port"
-        fi
-    fi
-done
-
-exit 0
-EOF
-
-chmod +x /etc/rc.local
-systemctl daemon-reload
-systemctl enable rc-local
-systemctl restart rc-local
-
 print_success "Password SSH"
 }
 function memasang_pembatas(){
@@ -928,6 +866,74 @@ cd
 rm -f /root/openvpn
 rm -f /root/key.pem
 rm -f /root/cert.pem
+
+# === FIX rc.local agar auto run di reboot ===
+cat > /etc/systemd/system/rc-local.service <<'EOF'
+[Unit]
+Description=Run /etc/rc.local at startup
+ConditionPathExists=/etc/rc.local
+After=network-online.target
+
+[Service]
+Type=forking
+ExecStart=/etc/rc.local start
+TimeoutSec=0
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+cat > /etc/rc.local <<'EOF'
+#!/bin/bash
+# rc.local - auto-run services setiap reboot
+exec > /var/log/rc.local.log 2>&1
+set -ex
+
+# Tunggu sedikit agar systemd siap
+sleep 5
+
+# Nonaktifkan IPv6 (jika tersedia)
+if [ -f /proc/sys/net/ipv6/conf/all/disable_ipv6 ]; then
+    echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6
+else
+    echo "IPv6 kernel path not found, skipping disable step"
+fi
+
+# Aktifkan firewall kalau ada
+if command -v netfilter-persistent >/dev/null 2>&1; then
+    systemctl restart netfilter-persistent || true
+elif [ -f /etc/iptables.up.rules ]; then
+    iptables-restore < /etc/iptables.up.rules 2>/dev/null || true
+fi
+
+# Jalankan BadVPN otomatis jika belum aktif
+for port in 7100 7200 7300; do
+    if ! pgrep -f "badvpn-udpgw.*$port" >/dev/null; then
+        echo "Starting BadVPN port $port..."
+        if [ -x /usr/bin/badvpn-udpgw ]; then
+            screen -dmS badvpn-$port /usr/bin/badvpn-udpgw \
+            --listen-addr 127.0.0.1:$port --max-clients 500 || true
+        else
+            echo "badvpn-udpgw not found, skipping port $port"
+        fi
+    fi
+done
+
+exit 0
+EOF
+
+# Pastikan screen sudah ada
+apt install -y screen >/dev/null 2>&1
+
+# Aktifkan rc.local
+chmod +x /etc/rc.local
+systemctl daemon-reload
+systemctl enable rc-local.service
+systemctl restart rc-local.service
+
 print_success "Semua Services"
 }
 function memasang_menu(){
