@@ -1262,8 +1262,8 @@ EOF
     cat > /etc/systemd/system/udp-custom.service <<EOF
 [Unit]
 Description=UDP Custom Service (Port 7400)
-After=network.target xray.service nginx.service
-Requires=network.target
+After=network-online.target rc-local.service netfilter-persistent.service network-tune.service
+Requires=network-online.target
 
 [Service]
 User=root
