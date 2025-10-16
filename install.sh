@@ -962,6 +962,22 @@ systemctl daemon-reload
 systemctl enable rc-local.service
 systemctl restart rc-local.service
 
+systemctl enable rc-local.service
+systemctl restart rc-local.service
+
+# === SETUPREBOOT DEFAULT ===
+if [ ! -f /etc/cron.d/re_otm ]; then
+    echo "5" > /home/re_otm
+    cat > /etc/cron.d/re_otm <<-END
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+0 5 * * * root echo "\$(date '+%Y-%m-%d %H:%M:%S') - VPS reboot by auto-cron" >> /var/log/auto-reboot.log && /sbin/reboot
+END
+    chmod 644 /etc/cron.d/re_otm
+    systemctl restart cron >/dev/null 2>&1
+    echo -e "\e[92m✅ SETUP Reboot aktif setiap jam 05:00 pagi\e[0m"
+fi
+
 print_success "Semua Services"
 }
 function memasang_menu(){
