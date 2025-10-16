@@ -1,7 +1,7 @@
 [Unit]
-Description=SSH UDP Custom Service
-Documentation=https://t.me/xd_tunnel
-After=network.target nss-lookup.target
+Description=UDP Custom Service (Port 7400)
+After=network-online.target netfilter-persistent.service network-tune.service
+Requires=network-online.target
 
 [Service]
 User=root
