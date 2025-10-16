@@ -109,3 +109,7 @@ bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release
 ```
 bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install -u www-data
 ```
+### edit drive token backup
+```
+nano /root/.config/rclone/rclone.conf
+```
