@@ -1,6 +1,5 @@
 {
-  "listen": "0.0.0.0:7400",
-  "interface": "${interface}",
+  "listen": ":7400",
   "stream_buffer": 134217728,
   "receive_buffer": 67108864,
   "auth": {
