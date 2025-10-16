@@ -1262,9 +1262,13 @@ function memasang_udepe() {
 
     wget -q -O udp-custom "https://raw.githubusercontent.com/sweaterpink1999/os/main/udp/udp-custom"
 
+    # ✅ Deteksi otomatis interface aktif (eth0, ens3, enp1s0, dll.)
+    interface=$(ip -o -4 addr show | awk '{print $2}' | grep -v "lo" | head -n1)
+
     cat > config.json <<EOF
 {
-  "listen": ":7400",
+  "listen": "0.0.0.0:7400",
+  "interface": "${interface}",
   "stream_buffer": 134217728,
   "receive_buffer": 67108864,
   "auth": {
@@ -1303,7 +1307,7 @@ EOF
     iptables -I OUTPUT -p udp --sport 7400 -j ACCEPT
     netfilter-persistent save
 
-    print_success "UDP Custom berhasil aktif di port 7400"
+    print_success "UDP Custom aktif di port 7400 (interface: ${interface})"
 }
 function memasang_noobz() {
   clear
