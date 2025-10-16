@@ -1275,16 +1275,16 @@ EOF
     chmod +x udp-custom
     chmod 644 config.json
 
-    cat > /etc/systemd/system/udp-custom.service <<EOF
+    cat > /etc/systemd/system/udp-custom.service <<'EOF'
 [Unit]
 Description=UDP Custom Service (Port 7400)
-After=network-online.target rc-local.service netfilter-persistent.service network-tune.service
+After=network-online.target netfilter-persistent.service network-tune.service
 Requires=network-online.target
 
 [Service]
 User=root
 Type=simple
-ExecStart=/etc/udp/udp-custom server -config /etc/udp/config.json -exclude 1,54,55,1000,65535,7300
+ExecStart=/etc/udp/udp-custom server -config /etc/udp/config.json -exclude 1,54,55,1000,65535
 WorkingDirectory=/etc/udp/
 Restart=always
 RestartSec=5s
