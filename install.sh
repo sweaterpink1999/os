@@ -774,25 +774,30 @@ EOF
 }
 function memasang_fail2ban(){
     clear
-    print_install "Memasang Fail2ban"
+    print_install "Memasang Fail2Ban (Proteksi SSH Aman untuk WS)"
+
     apt update -y && apt install -y fail2ban > /dev/null 2>&1
-    if [ -d "/usr/local/ddos" ]; then
-        echo -e "\nUninstalling The Previous Version First..."
-        rm -rf /usr/local/ddos
-    fi
-    mkdir -p /usr/local/ddos
-    for file in ddos.conf LICENSE ignore.ip.list ddos.sh; do
-        wget -q -O "/usr/local/ddos/$file" "http://www.inetbase.com/scripts/ddos/$file" || \
-        curl -s -o "/usr/local/ddos/$file" "http://www.inetbase.com/scripts/ddos/$file"
-        echo -n '.'
-    done
-    echo ""
-    chmod +x /usr/local/ddos/ddos.sh
-    ln -sf /usr/local/ddos/ddos.sh /usr/local/sbin/ddos
-    /usr/local/ddos/ddos.sh --cron > /dev/null 2>&1
-    systemctl enable --now fail2ban
+
+    cat > /etc/fail2ban/jail.local <<'EOF'
+[DEFAULT]
+bantime  = 1h
+findtime  = 10m
+maxretry = 3
+backend = systemd
+ignoreip = 127.0.0.1/8 10.0.0.0/8 192.168.0.0/16
+
+[sshd]
+enabled  = true
+port     = 22,2222,2223
+logpath  = /var/log/auth.log
+maxretry = 3
+findtime = 600
+bantime  = 3600
+EOF
+
+    systemctl enable fail2ban
     systemctl restart fail2ban
-    print_success "Fail2ban"
+    print_success "Fail2Ban SSH aktif dan aman untuk WS"
 }
 function memasang_netfilter(){
   clear
@@ -825,6 +830,24 @@ function memasang_netfilter(){
   apt autoremove -y >/dev/null 2>&1
 
   print_success "Netfilter & IPtables"
+}
+function memasang_firewall_limit(){
+    clear
+    print_install "Menambahkan Firewall Limit Anti Brute & Flood"
+
+    # Proteksi brute SSH
+    iptables -A INPUT -p tcp --dport 22 -m state --state NEW -m recent --set
+    iptables -A INPUT -p tcp --dport 22 -m state --state NEW -m recent --update --seconds 30 --hitcount 5 -j DROP
+
+    # Batasi koneksi flood ke 80 dan 443
+    iptables -A INPUT -p tcp --dport 80 -m connlimit --connlimit-above 50 -j DROP
+    iptables -A INPUT -p tcp --dport 443 -m connlimit --connlimit-above 50 -j DROP
+
+    # Simpan biar aktif otomatis pas reboot
+    netfilter-persistent save
+    netfilter-persistent reload
+
+    print_success "Firewall Limit aktif (Anti Brute SSH & Flood 80/443)"
 }
 function memasang_badvpn(){
     clear
@@ -929,6 +952,7 @@ fi
 if command -v netfilter-persistent >/dev/null 2>&1; then
     echo "[INFO] Menyalakan firewall..."
     systemctl restart netfilter-persistent || true
+    systemctl restart fail2ban || true
     sleep 3
     if ! iptables -L -n &>/dev/null; then
         echo "[WARN] Iptables gagal dimuat, mencoba manual restore..."
@@ -1572,6 +1596,7 @@ function mulai_penginstallan(){
     memasang_menu
     memasang_fail2ban
     memasang_netfilter
+    memasang_firewall_limit
     memasang_dropbear
     memasang_sshws
     memasang_profile
