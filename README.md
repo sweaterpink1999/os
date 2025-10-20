@@ -113,3 +113,10 @@ bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release
 ```
 nano /root/.config/rclone/rclone.conf
 ```
+### STAK VPS LAMA
+```
+pkill -9 apt apt-get apt-check
+rm -f /var/lib/apt/lists/lock /var/lib/dpkg/lock /var/lib/dpkg/lock-frontend
+dpkg --configure -a
+apt update -y && apt upgrade -y --fix-missing && apt install -y xxd bzip2 wget curl sudo build-essential bsdmainutils screen dos2unix && update-grub && apt dist-upgrade -y && sleep 2 && reboot
+```
