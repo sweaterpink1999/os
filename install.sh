@@ -897,7 +897,6 @@ systemctl enable --now noobzvpns
 systemctl enable --now server-sldns
 systemctl enable --now dropbear
 systemctl enable --now ws-stunnel
-systemctl enable --now rc-local
 systemctl enable --now cron
 systemctl enable --now atd
 systemctl enable --now netfilter-persistent
@@ -909,102 +908,77 @@ rm -f /root/openvpn
 rm -f /root/key.pem
 rm -f /root/cert.pem
 
-# === FIX rc.local agar auto run di reboot ===
-cat > /etc/systemd/system/rc-local.service <<'EOF'
-[Unit]
-Description=Run /etc/rc.local at startup
-ConditionPathExists=/etc/rc.local
-After=network-online.target
-
-[Service]
-Type=forking
-ExecStart=/etc/rc.local
-TimeoutSec=0
-RemainAfterExit=yes
-StandardOutput=journal
-StandardError=journal
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
+# === FIX rc.local agar tidak bentrok ===
 cat > /etc/rc.local <<'EOF'
 #!/bin/bash
 # rc.local - auto-run services setiap reboot
 exec > /var/log/rc.local.log 2>&1
 set -ex
 
-# Tunggu agar jaringan benar-benar siap
+# Tunggu agar jaringan siap
 sleep 10
-if ! ping -c1 8.8.8.8 &>/dev/null; then
-    echo "[WARN] Network belum aktif, menunggu lagi 5 detik..."
-    sleep 5
-fi
 
-# Nonaktifkan IPv6 (jika tersedia)
+# Nonaktifkan IPv6 jika ada
 if [ -f /proc/sys/net/ipv6/conf/all/disable_ipv6 ]; then
     echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6
-else
-    echo "IPv6 kernel path not found, skipping disable step"
 fi
 
-# Aktifkan firewall kalau ada
-if command -v netfilter-persistent >/dev/null 2>&1; then
-    echo "[INFO] Menyalakan firewall..."
-    systemctl restart netfilter-persistent || true
-    systemctl restart fail2ban || true
-    sleep 3
-    if ! iptables -L -n &>/dev/null; then
-        echo "[WARN] Iptables gagal dimuat, mencoba manual restore..."
-        iptables-restore < /etc/iptables.up.rules 2>/dev/null || true
-    fi
-elif [ -f /etc/iptables.up.rules ]; then
-    echo "[INFO] Restore manual iptables..."
+# Restore iptables
+if [ -f /etc/iptables.up.rules ]; then
     iptables-restore < /etc/iptables.up.rules 2>/dev/null || true
 fi
 
-# Jalankan BadVPN otomatis jika belum aktif
+# Restart service utama
+for svc in netfilter-persistent fail2ban nginx xray dropbear ws-stunnel noobzvpns haproxy server-sldns; do
+    systemctl restart $svc 2>/dev/null || true
+done
+
+# Jalankan BadVPN jika belum aktif
 for port in 7100 7200 7300; do
     if ! pgrep -f "badvpn-udpgw.*$port" >/dev/null; then
-        echo "Starting BadVPN port $port..."
-        if [ -x /usr/bin/badvpn-udpgw ]; then
-            screen -dmS badvpn-$port /usr/bin/badvpn-udpgw \
-            --listen-addr 127.0.0.1:$port --max-clients 500 || true
-        else
-            echo "badvpn-udpgw not found, skipping port $port"
-        fi
+        screen -dmS badvpn-$port /usr/bin/badvpn-udpgw \
+        --listen-addr 127.0.0.1:$port --max-clients 500 || true
     fi
 done
 
 exit 0
 EOF
 
-# Pastikan screen sudah ada
-apt install -y screen >/dev/null 2>&1
-
-# Aktifkan rc.local
 chmod +x /etc/rc.local
+
+cat > /etc/systemd/system/rc-local.service <<'EOF'
+[Unit]
+Description=Run /etc/rc.local at startup
+After=network-online.target
+ConditionPathExists=/etc/rc.local
+
+[Service]
+Type=forking
+ExecStart=/etc/rc.local
+TimeoutSec=0
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
 systemctl daemon-reload
 systemctl enable rc-local.service
 systemctl restart rc-local.service
 
-systemctl enable rc-local.service
-systemctl restart rc-local.service
-
-# === SETUPREBOOT DEFAULT ===
+# === SETUP REBOOT OTOMATIS JAM 05:00 ===
 if [ ! -f /etc/cron.d/re_otm ]; then
-    echo "5" > /home/re_otm
     cat > /etc/cron.d/re_otm <<-END
 SHELL=/bin/sh
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
-0 5 * * * root echo "\$(date '+%Y-%m-%d %H:%M:%S') - VPS reboot by auto-cron" >> /var/log/auto-reboot.log && /sbin/reboot
+0 5 * * * root /sbin/reboot
 END
     chmod 644 /etc/cron.d/re_otm
     systemctl restart cron >/dev/null 2>&1
-    echo -e "\e[92m✅ SETUP Reboot aktif setiap jam 05:00 pagi\e[0m"
+    echo -e "\e[92m✅ Reboot otomatis aktif setiap jam 05:00 pagi\e[0m"
 fi
 
-print_success "Semua Services"
+print_success "Semua Services dan Auto Start sudah sinkron"
 }
 function memasang_menu(){
     clear
@@ -1066,8 +1040,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 0 5 * * * root /sbin/reboot
 END
 
-    echo "*/30 * * * * root echo -n > /var/log/nginx/access.log" > /etc/cron.d/log.nginx
-    echo "*/30 * * * * root echo -n > /var/log/xray/access.log" > /etc/cron.d/log.xray
+    echo "*/1 * * * * root echo -n > /var/log/nginx/access.log" >/etc/cron.d/log.nginx
+    echo "*/1 * * * * root echo -n > /var/log/xray/access.log" >>/etc/cron.d/log.xray
 
     systemctl restart cron
 
@@ -1345,49 +1319,46 @@ function memasang_noobz() {
 }
 function memasang_haproxy() {
 clear
-print_install "Memasang HAProxy (struktur stabil & kompatibel Xray)"
-
-# pastikan dijalankan sebagai root
+print_install "Memasang Haproxy"
 if [ "$EUID" -ne 0 ]; then
-  echo -e "${RED}Jalankan script ini sebagai root!${NC}"
+  echo -e "${BIWhite}Jalankan script ini sebagai root!${NC}"
   exit 1
 fi
-
-echo -e "${BIWhite}✥ Membersihkan HAProxy lama...${NC}"
+echo -e "${BIWhite}✥Bersihkan HAProxy lama jika ada...${NC}"
 systemctl stop haproxy 2>/dev/null
 systemctl disable haproxy 2>/dev/null
 apt purge -y haproxy 2>/dev/null
-apt autoremove -y >/dev/null 2>&1
-rm -rf /etc/haproxy /var/lib/haproxy /run/haproxy.pid
-
-echo -e "${BIWhite}✥ Instalasi ulang HAProxy...${NC}"
-apt update -y && apt install haproxy -y
-
+apt autoremove -y
+rm -f /etc/haproxy/haproxy.cfg
+rm -f /etc/haproxy/hap.pem
+rm -rf /etc/haproxy/errors
+rm -rf /var/lib/haproxy
+rm -f /run/haproxy.pid
+echo -e "${BIWhite}✥Instalasi ulang HAProxy...${NC}"
+sudo apt update && sudo apt install haproxy -y
+echo -e "${BIWhite}✥Gabungkan sertifikat Xray ke /etc/haproxy/hap.pem...${NC}"
 mkdir -p /etc/haproxy
 cat /etc/xray/xray.crt /etc/xray/xray.key > /etc/haproxy/hap.pem
-
-# konfigurasi utama HAProxy
-cat > /etc/haproxy/haproxy.cfg <<'EOF'
+echo -e "${BIWhite}✥Buat konfigurasi HAProxy baru...${NC}"
+cat > /etc/haproxy/haproxy.cfg << 'EOF'
 global
     stats socket /run/haproxy/admin.sock mode 660 level admin expose-fd listeners
     stats timeout 1d
-
+    log /dev/log local0
+    log /dev/log local1 notice
+    log /dev/log local0 info
     tune.h2.initial-window-size 2147483647
     tune.ssl.default-dh-param 2048
-
     pidfile /run/haproxy.pid
     chroot /var/lib/haproxy
     user haproxy
     group haproxy
     daemon
-
     ssl-default-bind-ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384
     ssl-default-bind-ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256
     ssl-default-bind-options no-sslv3 no-tlsv10 no-tlsv11
-
     ca-base /etc/ssl/certs
     crt-base /etc/ssl/private
-
 defaults
     log global
     mode tcp
@@ -1395,99 +1366,71 @@ defaults
     timeout connect 200ms
     timeout client  300s
     timeout server  300s
-
-# ==== FRONTEND LISTENER ====
 frontend multiport
     mode tcp
-    bind-process 1 2
     bind *:222-1000 tfo
-    bind *:443 tfo
-    bind *:2053 tfo
-    bind *:2083 tfo
-    bind *:2096 tfo
-    bind *:2087 tfo
-    bind *:8443 tfo
-
     tcp-request inspect-delay 500ms
     tcp-request content accept if HTTP
     tcp-request content accept if { req.ssl_hello_type 1 }
-
     use_backend recir_http if HTTP
     default_backend recir_https
-
 frontend multiports
     mode tcp
     bind abns@haproxy-http accept-proxy tfo
     default_backend recir_https_www
-
 frontend ssl
     mode tcp
-    bind-process 1
-    bind *:80 tfo
-    bind *:8080 tfo
-    bind *:8880 tfo
-    bind *:2052 tfo
-    bind *:2086 tfo
-    bind *:2095 tfo
+    bind *:444 tfo
+    bind *:777 tfo
     bind abns@haproxy-https accept-proxy ssl crt /etc/haproxy/hap.pem alpn h2,http/1.1 tfo
-
     tcp-request inspect-delay 500ms
     tcp-request content capture req.ssl_sni len 100
     tcp-request content accept if { req.ssl_hello_type 1 }
-
     acl chk-02_up hdr(Connection) -i upgrade
     acl chk-02_ws hdr(Upgrade) -i websocket
     acl this_payload payload(0,7) -m bin 5353482d322e30
     acl up-to ssl_fc_alpn -i h2
-
-    use_backend GRUP_FTVPN if up-to
-    use_backend FTVPN if chk-02_up chk-02_ws
-    use_backend FTVPN if { path_reg -i ^\/(.*) }
-    use_backend BOT_FTVPN if this_payload
-    default_backend CHANNEL_FTVPN
-
-# ==== BACKENDS ====
+    use_backend GRUP_LITE if up-to
+    use_backend LITE if chk-02_up chk-02_ws
+    use_backend LITE if { path_reg -i ^\/(.*) }
+    use_backend BOT_LITE if this_payload
+    default_backend CHANNEL_LITE
 backend recir_https_www
     mode tcp
     server misssv-bau 127.0.0.1:2223 check
-
-backend FTVPN
+backend LITE
     mode http
-    server hencet-bau 127.0.0.1:1010 send-proxy check
-
-backend GRUP_FTVPN
+    server lite-vermilion 127.0.0.1:1010 send-proxy check
+backend GRUP_LITE
     mode tcp
-    server hencet-baus 127.0.0.1:1013 send-proxy check
-
-backend CHANNEL_FTVPN
+    server lite-vermilions 127.0.0.1:1013 send-proxy check
+backend CHANNEL_LITE
     mode tcp
     balance roundrobin
-    server nonok-bau 127.0.0.1:1194 check
-    server memek-bau 127.0.0.1:1012 send-proxy check
-
-backend BOT_FTVPN
+    server y-lite 127.0.0.1:1194 check
+    server lite-x 127.0.0.1:1012 send-proxy check
+backend BOT_LITE
     mode tcp
-    server misv-bau 127.0.0.1:2222 check
-
+    server xiao-lite 127.0.0.1:2222 check
 backend recir_http
     mode tcp
     server loopback-for-http abns@haproxy-http send-proxy-v2 check
-
 backend recir_https
     mode tcp
     server loopback-for-https abns@haproxy-https send-proxy-v2 check
 EOF
-
-# cek konfigurasi
+echo -e "${BIWhite}✥Cek konfigurasi HAProxy...${NC}"
 haproxy -c -f /etc/haproxy/haproxy.cfg
 if [ $? -eq 0 ]; then
-    systemctl daemon-reload
-    systemctl enable --now haproxy
+    echo -e "${BIWhite}✥Konfigurasi valid. Menyalakan HAProxy...${NC}"
     systemctl restart haproxy
-    print_success "HAProxy terpasang dan aktif dengan struktur stabil"
+    systemctl enable haproxy
+    echo -e "${BIWhite}✥HAProxy berhasil dipasang dan diperbarui!${NC}"
 else
-    print_error "Konfigurasi HAProxy tidak valid, periksa /etc/haproxy/haproxy.cfg"
+    echo -e "${BIWhite}✥Konfigurasi tidak valid. Cek file: /etc/haproxy/haproxy.cfg${NC}"
 fi
+systemctl restart haproxy
+print_success "Haproxy"
 }
 function memasang_index_page() {
   cat <<EOF > /var/www/html/index.html
