@@ -783,12 +783,14 @@ function memasang_xray_limits() {
     # Pastikan izin file benar
     chmod 644 /etc/security/limits.d/xray-limits.conf
 
-    # Tambahkan limit juga ke service Xray agar systemd tidak membatasi
+    # Pastikan file service Xray ada
     if [ -f /etc/systemd/system/xray.service ]; then
+        # Hapus baris limit lama biar gak dobel
         sed -i '/LimitNOFILE/d' /etc/systemd/system/xray.service
         sed -i '/LimitNPROC/d' /etc/systemd/system/xray.service
-        echo "LimitNOFILE=500000" >> /etc/systemd/system/xray.service
-        echo "LimitNPROC=500000" >> /etc/systemd/system/xray.service
+
+        # Sisipkan limit baru tepat di bawah [Service]
+        sed -i '/^\[Service\]/a LimitNOFILE=500000\nLimitNPROC=500000' /etc/systemd/system/xray.service
     fi
 
     # Reload semua konfigurasi systemd & restart service penting
