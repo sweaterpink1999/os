@@ -897,7 +897,6 @@ systemctl enable --now noobzvpns
 systemctl enable --now server-sldns
 systemctl enable --now dropbear
 systemctl enable --now ws-stunnel
-systemctl enable --now rc-local
 systemctl enable --now cron
 systemctl enable --now atd
 systemctl enable --now netfilter-persistent
@@ -909,102 +908,77 @@ rm -f /root/openvpn
 rm -f /root/key.pem
 rm -f /root/cert.pem
 
-# === FIX rc.local agar auto run di reboot ===
-cat > /etc/systemd/system/rc-local.service <<'EOF'
-[Unit]
-Description=Run /etc/rc.local at startup
-ConditionPathExists=/etc/rc.local
-After=network-online.target
-
-[Service]
-Type=forking
-ExecStart=/etc/rc.local
-TimeoutSec=0
-RemainAfterExit=yes
-StandardOutput=journal
-StandardError=journal
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
+# === FIX rc.local agar tidak bentrok ===
 cat > /etc/rc.local <<'EOF'
 #!/bin/bash
 # rc.local - auto-run services setiap reboot
 exec > /var/log/rc.local.log 2>&1
 set -ex
 
-# Tunggu agar jaringan benar-benar siap
+# Tunggu agar jaringan siap
 sleep 10
-if ! ping -c1 8.8.8.8 &>/dev/null; then
-    echo "[WARN] Network belum aktif, menunggu lagi 5 detik..."
-    sleep 5
-fi
 
-# Nonaktifkan IPv6 (jika tersedia)
+# Nonaktifkan IPv6 jika ada
 if [ -f /proc/sys/net/ipv6/conf/all/disable_ipv6 ]; then
     echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6
-else
-    echo "IPv6 kernel path not found, skipping disable step"
 fi
 
-# Aktifkan firewall kalau ada
-if command -v netfilter-persistent >/dev/null 2>&1; then
-    echo "[INFO] Menyalakan firewall..."
-    systemctl restart netfilter-persistent || true
-    systemctl restart fail2ban || true
-    sleep 3
-    if ! iptables -L -n &>/dev/null; then
-        echo "[WARN] Iptables gagal dimuat, mencoba manual restore..."
-        iptables-restore < /etc/iptables.up.rules 2>/dev/null || true
-    fi
-elif [ -f /etc/iptables.up.rules ]; then
-    echo "[INFO] Restore manual iptables..."
+# Restore iptables
+if [ -f /etc/iptables.up.rules ]; then
     iptables-restore < /etc/iptables.up.rules 2>/dev/null || true
 fi
 
-# Jalankan BadVPN otomatis jika belum aktif
+# Restart service utama
+for svc in netfilter-persistent fail2ban nginx xray dropbear ws-stunnel noobzvpns haproxy server-sldns; do
+    systemctl restart $svc 2>/dev/null || true
+done
+
+# Jalankan BadVPN jika belum aktif
 for port in 7100 7200 7300; do
     if ! pgrep -f "badvpn-udpgw.*$port" >/dev/null; then
-        echo "Starting BadVPN port $port..."
-        if [ -x /usr/bin/badvpn-udpgw ]; then
-            screen -dmS badvpn-$port /usr/bin/badvpn-udpgw \
-            --listen-addr 127.0.0.1:$port --max-clients 500 || true
-        else
-            echo "badvpn-udpgw not found, skipping port $port"
-        fi
+        screen -dmS badvpn-$port /usr/bin/badvpn-udpgw \
+        --listen-addr 127.0.0.1:$port --max-clients 500 || true
     fi
 done
 
 exit 0
 EOF
 
-# Pastikan screen sudah ada
-apt install -y screen >/dev/null 2>&1
-
-# Aktifkan rc.local
 chmod +x /etc/rc.local
+
+cat > /etc/systemd/system/rc-local.service <<'EOF'
+[Unit]
+Description=Run /etc/rc.local at startup
+After=network-online.target
+ConditionPathExists=/etc/rc.local
+
+[Service]
+Type=forking
+ExecStart=/etc/rc.local
+TimeoutSec=0
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
 systemctl daemon-reload
 systemctl enable rc-local.service
 systemctl restart rc-local.service
 
-systemctl enable rc-local.service
-systemctl restart rc-local.service
-
-# === SETUPREBOOT DEFAULT ===
+# === SETUP REBOOT OTOMATIS JAM 05:00 ===
 if [ ! -f /etc/cron.d/re_otm ]; then
-    echo "5" > /home/re_otm
     cat > /etc/cron.d/re_otm <<-END
 SHELL=/bin/sh
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
-0 5 * * * root echo "\$(date '+%Y-%m-%d %H:%M:%S') - VPS reboot by auto-cron" >> /var/log/auto-reboot.log && /sbin/reboot
+0 5 * * * root /sbin/reboot
 END
     chmod 644 /etc/cron.d/re_otm
     systemctl restart cron >/dev/null 2>&1
-    echo -e "\e[92m✅ SETUP Reboot aktif setiap jam 05:00 pagi\e[0m"
+    echo -e "\e[92m✅ Reboot otomatis aktif setiap jam 05:00 pagi\e[0m"
 fi
 
-print_success "Semua Services"
+print_success "Semua Services dan Auto Start sudah sinkron"
 }
 function memasang_menu(){
     clear
