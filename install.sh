@@ -772,6 +772,33 @@ EOF
   clear
   print_success "BBR Hybla"
 }
+function memasang_xray_limits() {
+    clear
+    print_install "Mengatur Limit Sistem untuk Koneksi Xray & Nginx"
+    REPO="https://raw.githubusercontent.com/sweaterpink1999/os/main/config"
+
+    # Unduh file konfigurasi limit dari repo
+    wget -q -O /etc/security/limits.d/xray-limits.conf "${REPO}/xray-limits.conf"
+
+    # Pastikan izin file benar
+    chmod 644 /etc/security/limits.d/xray-limits.conf
+
+    # Tambahkan limit juga ke service Xray agar systemd tidak membatasi
+    if [ -f /etc/systemd/system/xray.service ]; then
+        sed -i '/LimitNOFILE/d' /etc/systemd/system/xray.service
+        sed -i '/LimitNPROC/d' /etc/systemd/system/xray.service
+        echo "LimitNOFILE=500000" >> /etc/systemd/system/xray.service
+        echo "LimitNPROC=500000" >> /etc/systemd/system/xray.service
+    fi
+
+    # Reload semua konfigurasi systemd & restart service penting
+    systemctl daemon-reexec
+    systemctl daemon-reload
+    systemctl restart nginx
+    systemctl restart xray
+
+    print_success "Limit sistem berhasil diatur (500K koneksi / proses aktif)"
+}
 function memasang_fail2ban(){
     clear
     print_install "Memasang Fail2Ban (Proteksi SSH Aman untuk WS)"
@@ -1206,23 +1233,7 @@ Restart=on-failure
 [Install]
 WantedBy=multi-user.target
 EOF
-[Unit]
-Description=Server SlowDNS By LITE
-Documentation=https://one.one.one.one
-After=network.target nss-lookup.target
-[Service]
-Type=simple
-User=root
-CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
-AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
-NoNewPrivileges=true
-ExecStart=/etc/slowdns/sldns-server -udp :5300 -privkey-file /etc/slowdns/server.key $nameserver 127.0.0.1:2269
-Restart=on-failure
-[Install]
-WantedBy=multi-user.target
-END
-cd
-chmod +x /etc/systemd/system/client-sldns.service
+
 chmod +x /etc/systemd/system/server-sldns.service
 pkill sldns-server
 systemctl daemon-reload
@@ -1580,8 +1591,10 @@ function mulai_penginstallan(){
     memasang_noobz
     memasang_haproxy
     memasang_bbr_hybla
+    memasang_xray_limits
     memasang_index_page
     memasang_restart
+
     memasang_notifikasi_bot
 }
 mulai_penginstallan
