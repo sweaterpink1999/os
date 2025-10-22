@@ -1,6 +1,6 @@
 # =========================================
-# Xray Nginx Config - Stable (IPv4 Only)
-# Untuk 1–2 Core | WS + gRPC | Cloudflare Friendly
+# Xray Nginx Config - Stable (IPv4 Only, No HTTP/2)
+# WS + gRPC | Super Lightweight | Cloudflare Friendly
 # =========================================
 
 server {
@@ -93,8 +93,9 @@ server {
     }
 
     # =========================
-    # 🟩 gRPC (tetap http2)
+    # 🟩 gRPC (Tanpa HTTP/2 listener)
     # =========================
+    # gRPC tetap diteruskan langsung, tapi listener SSL tidak pakai http2.
     location /vless-grpc  {
         grpc_pass grpc://127.0.0.1:10005;
         grpc_set_header Host $host;
