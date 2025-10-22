@@ -1,23 +1,23 @@
 # =========================================
-# Xray Nginx Config - Full 443 WS + gRPC (Stable)
-# IPv4-Only | Optimized | Anti-Port-Bentrok
+# Xray Nginx Config - Stable (IPv4 Only)
+# Untuk 1–2 Core | WS + gRPC | Cloudflare Friendly
 # =========================================
 
 server {
     # 🌐 HTTP WS Ports (tanpa SSL)
-    listen 80 reuseport;         # Port utama (Cloudflare/CDN)
-    listen 8080 reuseport;       # Alternatif HTTP
-    listen 8880 reuseport;       # Alternatif HTTP
-    listen 2082 reuseport;       # Tambahan aman (ganti 2052)
-    listen 2086 reuseport;       # Alternatif umum (cPanel)
-    listen 2095 reuseport;       # Alternatif HTTP (mail/ws)
+    listen 80;
+    listen 8080;
+    listen 8880;
+    listen 2082;
+    listen 2086;
+    listen 2095;
 
     # 🔒 HTTPS WS + gRPC (SSL)
-    listen 443 ssl http2 reuseport;     # Port utama HTTPS
-    listen 8443 ssl http2 reuseport;    # Alternatif SSL
-    listen 2053 ssl http2 reuseport;    # Alternatif SSL Cloudflare
-    listen 2087 ssl http2 reuseport;    # Alternatif SSL
-    listen 2096 ssl http2 reuseport;    # Alternatif SSL
+    listen 443 ssl;
+    listen 8443 ssl;
+    listen 2053 ssl;
+    listen 2087 ssl;
+    listen 2096 ssl;
 
     server_name xxx;
 
@@ -40,24 +40,25 @@ server {
     add_header X-XSS-Protection "1; mode=block" always;
 
     # =========================
-    # Performance
+    # Performance & Timeout
     # =========================
     client_max_body_size 20M;
-    keepalive_timeout 30;
+    keepalive_timeout 60;
     tcp_nopush on;
     tcp_nodelay on;
     sendfile on;
 
     proxy_buffering off;
     proxy_request_buffering off;
-    proxy_read_timeout 3600s;
-    proxy_send_timeout 3600s;
-    proxy_connect_timeout 60s;
+    proxy_read_timeout 300s;
+    proxy_send_timeout 300s;
+    proxy_connect_timeout 30s;
+
     resolver 1.1.1.1 8.8.8.8 valid=300s ipv6=off;
     resolver_timeout 10s;
 
     # =========================
-    # 🟦 WebSocket
+    # 🟦 WebSocket (WS)
     # =========================
     location /vless {
         proxy_pass http://127.0.0.1:10001;
@@ -92,15 +93,27 @@ server {
     }
 
     # =========================
-    # 🟩 gRPC
+    # 🟩 gRPC (tetap http2)
     # =========================
-    location /vless-grpc  { grpc_pass grpc://127.0.0.1:10005; grpc_set_header Host $host; }
-    location /vmess-grpc  { grpc_pass grpc://127.0.0.1:10006; grpc_set_header Host $host; }
-    location /trojan-grpc { grpc_pass grpc://127.0.0.1:10007; grpc_set_header Host $host; }
-    location /ss-grpc     { grpc_pass grpc://127.0.0.1:10008; grpc_set_header Host $host; }
+    location /vless-grpc  {
+        grpc_pass grpc://127.0.0.1:10005;
+        grpc_set_header Host $host;
+    }
+    location /vmess-grpc  {
+        grpc_pass grpc://127.0.0.1:10006;
+        grpc_set_header Host $host;
+    }
+    location /trojan-grpc {
+        grpc_pass grpc://127.0.0.1:10007;
+        grpc_set_header Host $host;
+    }
+    location /ss-grpc     {
+        grpc_pass grpc://127.0.0.1:10008;
+        grpc_set_header Host $host;
+    }
 
     # =========================
-    # 🟨 Default Tunnel (SSH/OVPN)
+    # 🟨 Default Tunnel (SSH / OVPN)
     # =========================
     location / {
         proxy_pass http://127.0.0.1:10015;
@@ -113,10 +126,10 @@ server {
 }
 
 # =========================
-# 🧱 HTTPS Page (port 81)
+# 🧱 HTTPS Page (Port 81)
 # =========================
 server {
-    listen 81 ssl http2 reuseport;
+    listen 81 ssl;
     ssl_certificate /etc/xray/xray.crt;
     ssl_certificate_key /etc/xray/xray.key;
     root /var/www/html;
