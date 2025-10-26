@@ -855,6 +855,10 @@ function memasang_netfilter(){
   netfilter-persistent save
   netfilter-persistent reload
 
+  # Tambahkan opsi -w agar netfilter menunggu xtables lock
+  sed -i 's|iptables-restore |iptables-restore -w |g' /usr/share/netfilter-persistent/plugins.d/15-ip4tables
+  sed -i 's|ip6tables-restore |ip6tables-restore -w |g' /usr/share/netfilter-persistent/plugins.d/25-ip6tables
+
   apt autoclean -y >/dev/null 2>&1
   apt autoremove -y >/dev/null 2>&1
 
@@ -1292,7 +1296,7 @@ EOF
 [Unit]
 Description=UDP Custom Service (Port 7400)
 After=network-online.target netfilter-persistent.service rc-local.service
-Requires=network-online.target netfilter-persistent.service
+Requires=network-online.target netfilter-persistent.service rc-local.service
 
 [Service]
 User=root
@@ -1300,8 +1304,14 @@ Type=simple
 ExecStart=/etc/udp/udp-custom server -config /etc/udp/config.json -exclude 1,54,55,1000,65535
 WorkingDirectory=/etc/udp/
 Restart=always
-RestartSec=5s
+RestartSec=5
+TimeoutStartSec=0
+TimeoutStopSec=0
+KillMode=process
+KillSignal=SIGTERM
+OOMScoreAdjust=-1000
 LimitNOFILE=1000000
+LimitNPROC=1000000
 
 [Install]
 WantedBy=multi-user.target
