@@ -1301,10 +1301,11 @@ Requires=network-online.target netfilter-persistent.service rc-local.service
 [Service]
 User=root
 Type=simple
+ExecStartPre=/bin/bash -c 'until ping -c1 8.8.8.8 &>/dev/null; do sleep 2; done; sleep 10'
 ExecStart=/etc/udp/udp-custom server -config /etc/udp/config.json -exclude 1,54,55,1000,65535
 WorkingDirectory=/etc/udp/
 Restart=always
-RestartSec=5
+RestartSec=10
 TimeoutStartSec=0
 TimeoutStopSec=0
 KillMode=process
