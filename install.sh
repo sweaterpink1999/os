@@ -999,18 +999,6 @@ systemctl daemon-reload
 systemctl enable rc-local.service
 systemctl restart rc-local.service
 
-# === SETUP REBOOT OTOMATIS JAM 05:00 ===
-if [ ! -f /etc/cron.d/re_otm ]; then
-    cat > /etc/cron.d/re_otm <<-END
-SHELL=/bin/sh
-PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
-0 5 * * * root /sbin/reboot
-END
-    chmod 644 /etc/cron.d/re_otm
-    systemctl restart cron >/dev/null 2>&1
-    echo -e "\e[92m✅ Reboot otomatis aktif setiap jam 05:00 pagi\e[0m"
-fi
-
 print_success "Semua Services dan Auto Start sudah sinkron"
 }
 function memasang_menu(){
