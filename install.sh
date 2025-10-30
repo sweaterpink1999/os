@@ -941,15 +941,22 @@ rm -f /root/openvpn
 rm -f /root/key.pem
 rm -f /root/cert.pem
 
-# === FIX rc.local agar tidak bentrok ===
+# === FIX rc.local agar tidak bentrok dan lebih stabil ===
 cat > /etc/rc.local <<'EOF'
 #!/bin/bash
 # rc.local - auto-run services setiap reboot
 exec > /var/log/rc.local.log 2>&1
 set -ex
 
-# Tunggu agar jaringan siap
-sleep 10
+# Tunggu agar jaringan benar-benar siap
+sleep 25
+
+# Pastikan koneksi internet aktif
+until ping -c1 8.8.8.8 &>/dev/null; do
+    echo "Menunggu koneksi internet..."
+    sleep 5
+done
+sleep 5
 
 # Nonaktifkan IPv6 jika ada
 if [ -f /proc/sys/net/ipv6/conf/all/disable_ipv6 ]; then
@@ -982,7 +989,8 @@ chmod +x /etc/rc.local
 cat > /etc/systemd/system/rc-local.service <<'EOF'
 [Unit]
 Description=Run /etc/rc.local at startup
-After=network-online.target
+After=network-online.target netfilter-persistent.service
+Wants=network-online.target netfilter-persistent.service
 ConditionPathExists=/etc/rc.local
 
 [Service]
@@ -999,7 +1007,7 @@ systemctl daemon-reload
 systemctl enable rc-local.service
 systemctl restart rc-local.service
 
-print_success "Semua Services dan Auto Start sudah sinkron"
+print_success "Semua Services dan Auto Start sudah sinkron & stabil"
 }
 function memasang_menu(){
     clear
