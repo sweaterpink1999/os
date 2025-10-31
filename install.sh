@@ -1058,8 +1058,12 @@ END
     cat >/etc/cron.d/daily_reboot <<-END
 SHELL=/bin/sh
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
-0 5 * * * root /sbin/reboot
+0 5 * * * root echo "\$(date '+%Y-%m-%d %H:%M:%S') - VPS reboot by auto-cron" >> /var/log/auto-reboot.log && sync && sleep 3 && /sbin/reboot
 END
+
+touch /var/log/auto-reboot.log
+chmod 644 /var/log/auto-reboot.log
+chown root:root /var/log/auto-reboot.log
 
     echo "*/1 * * * * root echo -n > /var/log/nginx/access.log" >/etc/cron.d/log.nginx
     echo "*/1 * * * * root echo -n > /var/log/xray/access.log" >>/etc/cron.d/log.xray
