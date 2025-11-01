@@ -1055,10 +1055,11 @@ END
 
     chmod 644 /root/.profile
 
-    cat >/etc/cron.d/daily_reboot <<'EOF'
+    # =================== AUTO REBOOT DEFAULT ===================
+cat > /etc/cron.d/daily_reboot <<'EOF'
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
-0 5 * * * root echo "$(date +\%Y-\%m-\%d\ \%H:\%M:\%S) - VPS reboot by auto-cron" >> /var/log/auto-reboot.log && sync && sleep 3 && /sbin/reboot
+0 4 * * * root echo "$(date +\%Y-\%m-\%d\ \%H:\%M:\%S) - VPS reboot by auto-cron" >> /var/log/auto-reboot.log 2>&1; sync; sleep 10; sync; /sbin/reboot
 EOF
 
 # Pastikan log-nya aman dan terbaca cron
@@ -1072,7 +1073,7 @@ chown root:root /var/log/auto-reboot.log
     systemctl restart cron
 
     cat >/home/daily_reboot <<-END
-5
+4
 END
 
     echo "/bin/false" >>/etc/shells
