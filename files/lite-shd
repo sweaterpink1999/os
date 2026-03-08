@@ -1,0 +1,92 @@
+#!/bin/bash
+clear
+XRAY_CONFIG="/etc/xray/config.json"
+mkdir -p /etc/shadowsocks/
+mkdir -p /etc/limit/shadowsocks/ip/
+
+# Ambil domain server dari file Xray
+DOMAIN=$(cat /etc/xray/domain 2>/dev/null || echo "Tidak ada domain")
+
+# -------------------------------------
+# Kirim Notifikasi Telegram
+# -------------------------------------
+function send-ip() {
+    CHATID=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 3)
+    KEY=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 2)
+    TIME="10"
+    URL="https://api.telegram.org/bot$KEY/sendMessage"
+
+    # Format daftar IP (satu per baris)
+    IP_LIST=$(printf '%s\n' "${data2[@]}" | sed 's/^/• /')
+
+    TEXT="
+<code>────────────────────</code>
+<b>⚠️ DETEKSI MULTI LOGIN ⚠️</b>
+<code>────────────────────</code>
+<b>» Protocol:</b> <code>shadowsocks</code>
+<b>» User:</b> <code>${user}</code>
+<b>» Limit IP:</b> <code>${limit_ip} IP</code>
+<b>» IP Login:</b> <code>${login_count} IP</code>
+<b>» Daftar IP:</b>
+<code>${IP_LIST}</code>
+<code>────────────────────</code>
+<b>» Domain Server:</b> <code>${DOMAIN}</code>
+<code>────────────────────</code>
+<b>» Status:</b> <code>Hanya Notifikasi (user tidak dikunci)</code>
+<b>🤖 Mohon tidak berbagi akun ke banyak perangkat ya!</b>
+<code>────────────────────</code>
+"
+    curl -s --max-time $TIME \
+        -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEXT&parse_mode=html" \
+        "$URL" >/dev/null
+}
+
+# -------------------------------------
+# Proses Pengecekan
+# -------------------------------------
+function memulai_pengecekan() {
+    clear
+    > /tmp/other.txt
+
+    # Ambil semua user Shadowsocks dari config Xray
+    data=($(grep -E "^#@&" "$XRAY_CONFIG" | cut -d ' ' -f 2 | sort -u))
+
+    for user in "${data[@]}"; do
+        [[ -z "$user" ]] && continue
+
+        > /tmp/ipshadowsocks.txt
+
+        # Ambil IP login dari log Xray
+        data2=($(grep -w "$user" /var/log/xray/access.log \
+            | tail -n 500 \
+            | grep -oP '\sfrom\s\K[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' \
+            | sort -u))
+
+        for ip in "${data2[@]}"; do
+            [[ -n "$ip" ]] && echo "$ip" >> /tmp/ipshadowsocks.txt
+        done
+
+        if [[ -s /tmp/ipshadowsocks.txt ]]; then
+            raw_limit_ip=$(cat /etc/limit/shadowsocks/ip/"$user" 2>/dev/null || echo 1)
+            limit_ip=$(echo "$raw_limit_ip" | grep -o '[0-9]\+' || echo 1)
+            login_count=$(wc -l < /tmp/ipshadowsocks.txt)
+
+            echo -e "User        : $user"
+            echo -e "Limit Login : ${limit_ip} IP"
+            echo -e "Active IP   : $login_count IP"
+
+            # Jika user login melebihi limit → kirim notifikasi
+            if [[ "$login_count" -gt "$limit_ip" ]]; then
+                send-ip
+                echo -e "⚠️ User ${user} melebihi batas IP — notifikasi dikirim ke Telegram."
+                continue
+            fi
+        fi
+    done
+
+    rm -f /tmp/other.txt /tmp/ipshadowsocks.txt
+    echo -n > /var/log/xray/access.log
+    sleep 2
+}
+
+memulai_pengecekan

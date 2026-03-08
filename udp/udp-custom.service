@@ -1,0 +1,16 @@
+[Unit]
+Description=UDP Custom Service (Port 7400)
+After=network-online.target netfilter-persistent.service rc-local.service
+Requires=network-online.target netfilter-persistent.service
+
+[Service]
+User=root
+Type=simple
+ExecStart=/etc/udp/udp-custom server -config /etc/udp/config.json -exclude 1,54,55,1000,65535
+WorkingDirectory=/etc/udp/
+Restart=always
+RestartSec=5s
+LimitNOFILE=1000000
+
+[Install]
+WantedBy=multi-user.target
