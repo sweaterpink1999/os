@@ -3,6 +3,20 @@
 </p>
 
 ```
+sudo su <<'EOF'
+# Set SSH config
+sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+sed -i 's/^#\?PubkeyAuthentication.*/#PubkeyAuthentication yes/' /etc/ssh/sshd_config
+
+# Restart SSH
+systemctl restart ssh || systemctl restart sshd
+
+exit
+EOF
+```
+
+```
 apt update -y && apt upgrade -y --fix-missing && apt install -y xxd bzip2 wget curl sudo build-essential bsdmainutils screen dos2unix && update-grub && apt dist-upgrade -y && sleep 2 && reboot
 ```
 
