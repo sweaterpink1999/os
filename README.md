@@ -3,6 +3,10 @@
 </p>
 
 ```
+sudo sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/; s/^#\?PasswordAuthentication.*/PasswordAuthentication yes/; s/^#\?PubkeyAuthentication.*/#PubkeyAuthentication yes/' /etc/ssh/sshd_config && (sudo systemctl restart ssh || sudo systemctl restart sshd)
+```
+
+```
 sudo su <<'EOF'
 # Set SSH config
 sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
