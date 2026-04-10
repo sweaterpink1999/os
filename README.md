@@ -7,20 +7,6 @@ sudo sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/; s/^#\?PasswordAuthent
 ```
 
 ```
-sudo su <<'EOF'
-# Set SSH config
-sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
-sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
-sed -i 's/^#\?PubkeyAuthentication.*/#PubkeyAuthentication yes/' /etc/ssh/sshd_config
-
-# Restart SSH
-systemctl restart ssh || systemctl restart sshd
-
-exit
-EOF
-```
-
-```
 grep -E "PermitRootLogin|PasswordAuthentication|PubkeyAuthentication" /etc/ssh/sshd_config
 ```
 
