@@ -9,11 +9,15 @@ sudo sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/; s/^#\?PasswordAuthent
 ```
 grep -E "PermitRootLogin|PasswordAuthentication|PubkeyAuthentication" /etc/ssh/sshd_config
 ```
-
+## INSTALL
+```
+apt update -y && apt install -y xxd bzip2 wget curl sudo build-essential bsdmainutils screen dos2unix && apt dist-upgrade -y && update-grub && sleep 2 && reboot
+```
+## SKIP INI
 ```
 apt update -y && apt upgrade -y --fix-missing && apt install -y xxd bzip2 wget curl sudo build-essential bsdmainutils screen dos2unix && update-grub && apt dist-upgrade -y && sleep 2 && reboot
 ```
-
+## INTSALL LANGSUNG
 ```
 screen -S setup-session bash -c "wget -q https://raw.githubusercontent.com/sweaterpink1999/install-sh/main/install.sh && chmod +x install.sh && ./install.sh; read -p 'Tekan enter untuk keluar...'"
 ```
