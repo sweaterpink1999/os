@@ -11,10 +11,6 @@ grep -E "PermitRootLogin|PasswordAuthentication|PubkeyAuthentication" /etc/ssh/s
 ```
 ## INSTALL
 ```
-apt update -y && apt install -y xxd bzip2 wget curl sudo build-essential bsdmainutils screen dos2unix && apt dist-upgrade -y && update-grub && sleep 2 && reboot
-```
-## SKIP INI
-```
 apt update -y && apt upgrade -y --fix-missing && apt install -y xxd bzip2 wget curl sudo build-essential bsdmainutils screen dos2unix && update-grub && apt dist-upgrade -y && sleep 2 && reboot
 ```
 ## INTSALL LANGSUNG
