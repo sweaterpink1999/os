@@ -168,6 +168,10 @@ Shared drive? → n
 Simpan → y
 
 Keluar → q
+
+https://console.cloud.google.com/iam-admin/serviceaccounts
+https://console.cloud.google.com/
+
 ### CEK LOKAL VPS
 ```
 curl ipinfo.io
