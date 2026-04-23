@@ -234,3 +234,18 @@ cd /mnt/c/Users/Lukman/Downloads/menu/menu
 - Always Use HTTPS : OFF
 - UNDER ATTACK MODE : OFF
 ```
+
+### 🧪 Test Autobackup (Simulasi Cron)
+
+Jalankan ini:
+```
+env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin bash /usr/local/sbin/autobotbkp
+```
+🎯 Harusnya:
+✔ tidak ada prompt Backup y/n?
+✔ langsung jalan backup
+✔ kirim file sukses
+✔ muncul:
+File ID
+File Path
+Info File ID berhasil dikirim
