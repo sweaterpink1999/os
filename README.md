@@ -235,17 +235,10 @@ cd /mnt/c/Users/Lukman/Downloads/menu/menu
 - UNDER ATTACK MODE : OFF
 ```
 
-### 🧪 Test Autobackup (Simulasi Cron)
+### 🧪 cek backup cron (Simulasi Cron)
 
 Jalankan ini:
 ```
-env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin bash /usr/local/sbin/autobotbkp
+systemctl status cron
+grep -i sendmail /var/log/syslog | tail -n 10
 ```
-🎯 Harusnya:
-✔ tidak ada prompt Backup y/n?
-✔ langsung jalan backup
-✔ kirim file sukses
-✔ muncul:
-File ID
-File Path
-Info File ID berhasil dikirim
