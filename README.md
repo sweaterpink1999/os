@@ -1,6 +1,7 @@
 <p align="center">
 <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=800&size=30&duration=4900&pause=1000&color=44F7EF&center=true&vCenter=true&repeat=false&random=true&width=435&height=40&lines=VIRUS+SWEATER+PINK+" alt="Typing SVG" />
 </p>
+________________________________________________________________________________________________________________________________________________
 
 ### CEK ISP LOKASI VPS SPEEDTEST
 ```
@@ -12,6 +13,7 @@ sudo apt install speedtest -y
 ```
 speedtest
 ```
+________________________________________________________________________________________________________________________________________________
 ### ROOT
 
 ```
@@ -21,6 +23,7 @@ sudo sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/; s/^#\?PasswordAuthent
 ```
 grep -E "PermitRootLogin|PasswordAuthentication|PubkeyAuthentication" /etc/ssh/sshd_config
 ```
+________________________________________________________________________________________________________________________________________________
 ## INSTALL 1
 ```
 apt update -y && apt upgrade -y --fix-missing && apt install -y xxd bzip2 wget curl sudo build-essential bsdmainutils screen dos2unix && update-grub && apt dist-upgrade -y && sleep 2 && reboot
@@ -29,10 +32,15 @@ apt update -y && apt upgrade -y --fix-missing && apt install -y xxd bzip2 wget c
 ```
 screen -S setup-session bash -c "wget -q https://raw.githubusercontent.com/sweaterpink1999/install-sh/main/install.sh && chmod +x install.sh && ./install.sh; read -p 'Tekan enter untuk keluar...'"
 ```
-## Perintah Untuk Update Script
+________________________________________________________________________________________________________________________________________________
+## UPDATE Script
 ```
 wget -q -O update.sh https://raw.githubusercontent.com/sweaterpink1999/os/main/update.sh && chmod +x update.sh && ./update.sh && rm -f update.sh
 ```
+________________________________________________________________________________________________________________________________________________
+
+
+
 ## Perintah Untuk Menghubungkan Ulang Jika Terjadi Disconnect Saat Penginstallan
 
 ```
