@@ -235,10 +235,11 @@ cd /mnt/c/Users/Lukman/Downloads/menu/menu
 - UNDER ATTACK MODE : OFF
 ```
 
-### 🧪 cek backup cron (Simulasi Cron)
+### 🧪 cek backup cron dan at (Simulasi Cron)
 
 Jalankan ini:
 ```
 systemctl status cron
+systemctl status atd
 grep -i sendmail /var/log/syslog | tail -n 10
 ```
