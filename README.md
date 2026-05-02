@@ -2,6 +2,18 @@
 <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=800&size=30&duration=4900&pause=1000&color=44F7EF&center=true&vCenter=true&repeat=false&random=true&width=435&height=40&lines=VIRUS+SWEATER+PINK+" alt="Typing SVG" />
 </p>
 
+### CEK ISP LOKASI VPS SPEEDTEST
+```
+sudo apt update
+sudo apt install curl -y
+curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | sudo bash
+sudo apt install speedtest -y
+```
+```
+speedtest
+```
+### ROOT
+
 ```
 sudo sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/; s/^#\?PasswordAuthentication.*/PasswordAuthentication yes/; s/^#\?PubkeyAuthentication.*/#PubkeyAuthentication yes/' /etc/ssh/sshd_config && (sudo systemctl restart ssh || sudo systemctl restart sshd)
 ```
@@ -243,14 +255,3 @@ systemctl status cron
 systemctl status atd
 grep -i sendmail /var/log/syslog | tail -n 10
 ```
-### CEK ISP LOKASI VPS SPEEDTEST
-```
-sudo apt update
-sudo apt install curl -y
-curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | sudo bash
-sudo apt install speedtest -y
-```
-```
-speedtest
-```
-
