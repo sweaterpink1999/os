@@ -243,3 +243,14 @@ systemctl status cron
 systemctl status atd
 grep -i sendmail /var/log/syslog | tail -n 10
 ```
+### CEK ISP LOKASI VPS SPEEDTEST
+```
+sudo apt update
+sudo apt install curl -y
+curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | sudo bash
+sudo apt install speedtest -y
+```
+```
+speedtest
+```
+
