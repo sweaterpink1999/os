@@ -104,7 +104,7 @@ function unlock_user() {
 }
 
 function reload_services() {
-    systemctl restart xray >> /dev/null 2>&1
+    systemctl reload xray >> /dev/null 2>&1
 }
 
 function memulai_pengecekan() {
