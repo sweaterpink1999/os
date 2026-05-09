@@ -59,7 +59,7 @@ EOF
 Description=Run ${service} every minute
 
 [Timer]
-OnCalendar=minutely
+OnCalendar=*:0/5
 Persistent=true
 Unit=${service}.service
 
@@ -101,7 +101,7 @@ EOF
 Description=Run ${service} every minute
 
 [Timer]
-OnCalendar=minutely
+OnCalendar=*:0/5
 Persistent=true
 Unit=${service}.service
 
