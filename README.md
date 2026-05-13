@@ -5,13 +5,7 @@ ________________________________________________________________________________
 
 ### CEK ISP LOKASI VPS SPEEDTEST
 ```
-sudo apt update
-sudo apt install curl -y
-curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | sudo bash
-sudo apt install speedtest -y
-```
-```
-speedtest
+sudo sh -c 'apt update && apt install -y curl && curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | bash && apt install -y speedtest && speedtest'
 ```
 ________________________________________________________________________________________________________________________________________________
 ### ROOT
