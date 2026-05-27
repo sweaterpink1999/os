@@ -214,6 +214,7 @@ sudo nano /etc/ssh/sshd_config.d/50-cloud-init.conf
 ```
 PasswordAuthentication yes
 ```
+baru ganti pw setelah semua ganti set
 ```
 sudo systemctl restart ssh
 sudo systemctl restart sshd
