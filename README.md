@@ -214,6 +214,10 @@ sudo nano /etc/ssh/sshd_config.d/50-cloud-init.conf
 ```
 PasswordAuthentication yes
 ```
+```
+sudo systemctl restart ssh
+sudo systemctl restart sshd
+```
 
 
 ⚠️ Jangan hapus key-nya, hanya command-nya
