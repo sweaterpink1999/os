@@ -197,17 +197,38 @@
        }
     }
   ],
-  "outbounds": [
-    {
-      "protocol": "freedom",
-      "settings": {}
-    },
-    {
-      "protocol": "blackhole",
-      "settings": {},
-      "tag": "blocked"
-    }
-  ],
+"outbounds": [
+  {
+    "protocol": "freedom",
+    "settings": {},
+    "tag": "direct"
+  },
+  {
+    "protocol": "freedom",
+    "settings": {},
+    "tag": "proxy"
+  },
+  {
+    "protocol": "dns",
+    "settings": {},
+    "tag": "dnsOut"
+  },
+  {
+    "protocol": "blackhole",
+    "settings": {},
+    "tag": "block"
+  },
+  {
+    "protocol": "blackhole",
+    "settings": {},
+    "tag": "reject"
+  },
+  {
+    "protocol": "blackhole",
+    "settings": {},
+    "tag": "blocked"
+  }
+],
   "routing": {
     "domainStrategy": "AsIs",
     "rules": [
