@@ -4,8 +4,13 @@
 ________________________________________________________________________________________________________________________________________________
 
 ### CEK ISP LOKASI VPS SPEEDTEST
+ubuntu 20-22
 ```
 sudo sh -c 'apt update && apt install -y curl && curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | bash && apt install -y speedtest && speedtest'
+```
+```
+ubuntu 24
+sudo sh -c 'rm -f /etc/apt/sources.list.d/ookla_speedtest-cli.list /etc/apt/sources.list.d/ookla.list && rm -f /etc/apt/keyrings/ookla.gpg /etc/apt/keyrings/ookla_speedtest-cli-archive-keyring.gpg && apt update && apt install -y curl gpg && mkdir -p /etc/apt/keyrings && echo "deb [signed-by=/etc/apt/keyrings/ookla.gpg] https://packagecloud.io/ookla/speedtest-cli/ubuntu/ jammy main" > /etc/apt/sources.list.d/ookla.list && curl -fsSL https://packagecloud.io/ookla/speedtest-cli/gpgkey | gpg --dearmor -o /etc/apt/keyrings/ookla.gpg && apt update && apt install -y speedtest && speedtest'
 ```
 ________________________________________________________________________________________________________________________________________________
 ### ROOT
