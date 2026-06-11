@@ -13,6 +13,16 @@ ubuntu 24
 sudo sh -c 'rm -f /etc/apt/sources.list.d/ookla_speedtest-cli.list /etc/apt/sources.list.d/ookla.list && rm -f /etc/apt/keyrings/ookla.gpg /etc/apt/keyrings/ookla_speedtest-cli-archive-keyring.gpg && apt update && apt install -y curl gpg && mkdir -p /etc/apt/keyrings && echo "deb [signed-by=/etc/apt/keyrings/ookla.gpg] https://packagecloud.io/ookla/speedtest-cli/ubuntu/ jammy main" > /etc/apt/sources.list.d/ookla.list && curl -fsSL https://packagecloud.io/ookla/speedtest-cli/gpgkey | gpg --dearmor -o /etc/apt/keyrings/ookla.gpg && apt update && apt install -y speedtest && speedtest'
 ```
 ________________________________________________________________________________________________________________________________________________
+### DOWN UBUNTU SC ROOT 20
+V1 GIT ME
+```
+curl -O https://raw.githubusercontent.com/sweaterpink1999/ubuntu-20/main/reinstall.sh && bash reinstall.sh ubuntu 20.04 && reboot
+```
+V2
+```
+curl -O https://raw.githubusercontent.com/bin456789/reinstall/main/reinstall.sh && bash reinstall.sh ubuntu 20.04 && reboot
+```
+________________________________________________________________________________________________________________________________________________
 ### ROOT
 
 ```
@@ -124,10 +134,6 @@ deb http://archive.ubuntu.com/ubuntu focal-updates main universe restricted mult
 deb http://archive.ubuntu.com/ubuntu focal-security main universe restricted multiverse
 
 apt update && apt install openssh-server -y
-```
-### DOWN UBUNTU SC ROOT 20
-```
-curl -O https://raw.githubusercontent.com/bin456789/reinstall/main/reinstall.sh && bash reinstall.sh ubuntu 20.04 && reboot
 ```
 ### update xray core
 ```
