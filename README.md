@@ -273,3 +273,10 @@ systemctl status cron
 systemctl status atd
 grep -i sendmail /var/log/syslog | tail -n 10
 ```
+### cek sertifikasi terbaru domain:
+```
+openssl x509 -in /etc/xray/xray.crt -noout -subject -issuer -dates -ext subjectAltName
+```
+```
+cat /etc/xray/domain
+```
