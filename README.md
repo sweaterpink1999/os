@@ -280,3 +280,6 @@ openssl x509 -in /etc/xray/xray.crt -noout -subject -issuer -dates -ext subjectA
 ```
 cat /etc/xray/domain
 ```
+```
+curl -Ik --http1.1 "https://$(cat /etc/xray/domain)"
+```
