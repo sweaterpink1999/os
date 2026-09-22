@@ -273,7 +273,10 @@ systemctl status cron
 systemctl status atd
 grep -i sendmail /var/log/syslog | tail -n 10
 ```
-### cek sertifikasi terbaru domain:
+### cek sertifikasi terbaru domain cloadfront:
+
+setelah backup
+Pilih nomor [04] Renew Certificate Domain
 ```
 openssl x509 -in /etc/xray/xray.crt -noout -subject -issuer -dates -ext subjectAltName
 ```
